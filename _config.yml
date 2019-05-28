@@ -1,49 +1,40 @@
-# Basic
-title: Vno Jekyll
-subtitle: A blog-orientation theme for Jekyll
-welcome_message: <a href="https://github.com/onevcat/vno-jekyll" target="_blank">Download the theme</a>
-description: Vno Jekyll is a port of my Ghost theme vno.
-creator: <a href="http://onev.cat">@onevcat</a>
+# visit https://github.com/mojombo/jekyll/wiki/Configuration for more settings
 
-url: "http://vno.onevcat.com"
-
-permalink: /:year/:month/:title/
-
-# Format
+paginate: 10 # pagination based on number of posts
+paginate_path: "page:num"
+exclude: ["README.md"] # files to exclude
 highlighter: rouge
+markdown: kramdown
+disqus: dbyll
+google_analytics: dbyll
+title: dbyll
 
-# supported colors: blue, green, purple, red, orange or slate. If you need clear, leave it empty.
-cover_color: red
+defaults:
+  -
+    scope:
+      path: "" # empty string for all files
+    values:
+      title: dbyll
 
-# The blog button should not be removed.
-blog_button:
-    title: Blog
-    description: Visit blog
+description: Stylish Jekyll Theme
+author:
+  name: dbyll
+  email: dbyll@ismaildemirbilek.com
+  github: dbtek
+  twitter: dbtek
+  pinterest: asd123
+  linkedin: asd123
+  bio: Your stylish, minimalist theme!
+  email_md5: 726351295ec82e145928582f595aa3aa
 
-# Navigation buttons in the front page.
-nav:
-    - {title: Projects, description: My Projects, url: 'http://project.onevcat.com'}
-    # - {title: Another Button, description: A button, url: 'http://example.com'}
+rss_path: feed.xml
+categories_path: categories.html
+tags_path: tags.html
 
-# Pagination
-plugins: [jekyll-paginate]
-paginate: 10
-paginate_path: "page/:num/"
+# set it as url of an image
+# sidebar_background_image: https://www.dropbox.com/s/g9h23zrycedxtk5/sky.png?raw=1
 
-# Comment
-comment:
-    disqus: vno-jekyll
-    # duoshuo: 
-    
-# Social
-social:
-    weibo: onevcat
-    github: onevcat
-    twitter: onevcat
-    gplus: 107108267983477358170
-    mail: onev@onevcat.com
+BASE_PATH:
 
-# Google Analytics
-ga:
-    # id: your_ga_id
-    # host: your_host
+plugins:
+  - jekyll-paginate
