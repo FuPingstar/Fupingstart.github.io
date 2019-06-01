@@ -4,11 +4,10 @@ paginate: 10 # pagination based on number of posts
 paginate_path: "page:num"
 exclude: ["README.md"] # files to exclude
 highlighter: rouge
-# markdown: kramdown
+#markdown: kramdown
 disqus: dbyll
 google_analytics: dbyll
-# title: dbyll
-title: Fupingstar
+title: dbyll
 
 defaults:
   -
