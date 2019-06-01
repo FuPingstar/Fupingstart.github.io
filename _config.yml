@@ -39,3 +39,5 @@ BASE_PATH:
 
 plugins:
   - jekyll-paginate
+
+theme: jekyll-theme-cayman
