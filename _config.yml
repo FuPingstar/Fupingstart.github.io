@@ -7,7 +7,7 @@ highlighter: rouge
 markdown: kramdown
 disqus: dbyll
 google_analytics: dbyll
-title: dbyll
+title: FuPingstar
 
 defaults:
   -
@@ -22,8 +22,8 @@ author:
   email: im.fa.fa63@gmail.com
   github: FuPingstar
   twitter: FuPingstar
-  # pinterest: asd123
-  # linkedin: asd123
+  pinterest:
+  linkedin: 
   bio: The path to advancement for Java engineers
   email_md5: 726351295ec82e145928582f595aa3aa
 
