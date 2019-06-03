@@ -23,7 +23,7 @@ author:
   github: FuPingstar
   twitter: FuPingstar
   pinterest:
-  linkedin: 
+  linkedin:
   bio: The path to advancement for Java engineers
   email_md5: 726351295ec82e145928582f595aa3aa
 
@@ -38,5 +38,3 @@ BASE_PATH:
 
 plugins:
   - jekyll-paginate
-
-# excerpt_separator: “<!-- more -->”
