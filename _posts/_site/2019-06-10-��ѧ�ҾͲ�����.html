@@ -1,0 +1,231 @@
+<p><strong>写这篇文章的目的，是想要从JVM的角度去介绍一下java多线程，自己也当是巩固复习吧，如有不对之处还需指正，评论功能需挂vpn才可见，没办法，Disqus国内无法访问，国家网络的闭关锁国很是苦恼啊…不吐槽了，下面开始</strong></p>
+
+<p><strong>首先先对哲学家就餐问题进行描述：</strong></p>
+
+<p>摘自维基百科</p>
+
+<p>哲学家就餐问题可以这样表述，假设有五位哲学家围坐在一张圆形餐桌旁，做以下两件事情之一：吃饭，或者思考。吃东西的时候，他们就停止思考，思考的时候也停止吃东西。餐桌中间有一大碗意大利面，每两个哲学家之间有一只餐叉。因为用一只餐叉很难吃到意大利面，所以假设哲学家必须用两只餐叉吃东西。他们只能使用自己左右手边的那两只餐叉。哲学家就餐问题有时也用米饭和筷子而不是意大利面和餐叉来描述，因为很明显，吃米饭必须用两根筷子。</p>
+
+<p>哲学家从来不交谈，这就很危险，可能产生死锁，每个哲学家都拿着左手的餐叉，永远都在等右边的餐叉（或者相反）。</p>
+
+<p>即使没有死锁，也有可能发生资源耗尽。例如，假设规定当哲学家等待另一只餐叉超过五分钟后就放下自己手里的那一只餐叉，并且再等五分钟后进行下一次尝试。这个策略消除了死锁（系统总会进入到下一个状态），但仍然有可能发生“活锁”。如果五位哲学家在完全相同的时刻进入餐厅，并同时拿起左边的餐叉，那么这些哲学家就会等待五分钟，同时放下手中的餐叉，再等五分钟，又同时拿起这些餐叉。</p>
+
+<p><strong>本篇文章只讨论死锁问题，不讨论活锁。</strong></p>
+
+<p><img src="/assets/images/2019/06/11/哲学家就餐问题/哲学家就餐问题.png" alt="哲学家就餐问题" title="哲学家就餐问题" /></p>
+
+<p>接下来，我们通过该问题来分析一下死锁产生的必要条件，<strong>注意是必要条件而不是充分条件，也就是说只要产生了死锁下面的这些条件一定同时成立，但是上述条件即使同时成立也不一定能产生死锁，所以说，死锁问题同可见性问题类似，并不是必然出现的。</strong></p>
+<ul>
+  <li>资源互斥
+    <ul>
+      <li>涉及的资源必须是独占的，即每一个资源一次只能被一个线程使用。</li>
+      <li>哲学家就餐问题中的筷子（或者使用筷子时所需持有的锁）可被看作独占的资源。</li>
+    </ul>
+  </li>
+  <li>资源不可抢夺
+    <ul>
+      <li>涉及的资源只能被其持有者（线程）主动释放，而无法被资源的持有者和申请者之外的第三方线程所抢夺。</li>
+      <li>哲学家就餐问题中的筷子只能由持有该筷子的哲学家（线程）主动放下。</li>
+    </ul>
+  </li>
+  <li>占用并等待资源
+    <ul>
+      <li>涉及的线程当前至少持有一个资源并申请其他资源，而这些资源恰好被其他线程持有。</li>
+      <li>哲学家就餐问题中一个哲学家左手拿着筷子而等待其右手边的筷子，这根筷子恰好被其右手边的哲学家拿起，并且，等待其他哲学家手中的筷子的哲学家并不放下自己手中的筷子。</li>
+    </ul>
+  </li>
+  <li>循环等待资源
+    <ul>
+      <li>涉及的线程必须在等待别的线程的持有资源，而这些线程又反过来等待第一个线程所持有的资源。</li>
+      <li>哲学家就餐问题中第1个哲学家在等待第2个哲学家左手持有的筷子，第2个哲学家在等待第3个哲学家左手持有的筷子。。。第5个哲学家在等待第1个哲学家左手持有的筷子。</li>
+    </ul>
+  </li>
+</ul>
+
+<p><strong>分析完产生死锁问题的必要条件，思考一下，在java多线程编程中，把锁看作是一种资源，锁正好符合“资源互斥”和“资源不可抢夺”的要求，那么可能产生死锁的代码特征就是在持有一个锁的情况下去申请另外一个锁，通常意味着锁的嵌套。</strong></p>
+
+<p><strong>接下来，我们用java程序实现哲学家就餐问题</strong></p>
+
+<ul>
+  <li>哲学家抽象类</li>
+</ul>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cm">/**
+* @author FuPingstar
+* @date 2019/6/11 13:00
+*/</span>
+<span class="kd">public</span> <span class="kd">abstract</span> <span class="kd">class</span> <span class="nc">AbstractPhilosopher</span> <span class="kd">extends</span> <span class="n">Thread</span> <span class="kd">implements</span> <span class="n">Philosopher</span><span class="o">{</span>
+
+   <span class="kd">protected</span> <span class="kd">final</span> <span class="kt">int</span> <span class="n">id</span><span class="o">;</span>
+   <span class="kd">protected</span> <span class="kd">final</span> <span class="n">Chopstick</span> <span class="n">left</span><span class="o">;</span>
+   <span class="kd">protected</span> <span class="kd">final</span> <span class="n">Chopstick</span> <span class="n">right</span><span class="o">;</span>
+
+   <span class="kd">public</span> <span class="nf">AbstractPhilosopher</span><span class="o">(</span><span class="kt">int</span> <span class="n">id</span><span class="o">,</span> <span class="n">Chopstick</span> <span class="n">left</span><span class="o">,</span> <span class="n">Chopstick</span> <span class="n">right</span><span class="o">)</span> <span class="o">{</span>
+       <span class="kd">super</span><span class="o">(</span><span class="s">"Philosopher-"</span> <span class="o">+</span> <span class="n">id</span><span class="o">);</span>
+       <span class="k">this</span><span class="o">.</span><span class="na">id</span> <span class="o">=</span> <span class="n">id</span><span class="o">;</span>
+       <span class="k">this</span><span class="o">.</span><span class="na">left</span> <span class="o">=</span> <span class="n">left</span><span class="o">;</span>
+       <span class="k">this</span><span class="o">.</span><span class="na">right</span> <span class="o">=</span> <span class="n">right</span><span class="o">;</span>
+   <span class="o">}</span>
+
+
+   <span class="nd">@Override</span>
+   <span class="kd">public</span> <span class="kt">void</span> <span class="nf">run</span><span class="o">()</span> <span class="o">{</span>
+<span class="c1">//    哲学家总是在吃饭与思考之间反复</span>
+       <span class="k">for</span> <span class="o">(;;){</span>
+           <span class="n">think</span><span class="o">();</span>
+           <span class="n">eat</span><span class="o">();</span>
+       <span class="o">}</span>
+   <span class="o">}</span>
+
+   <span class="nd">@Override</span>
+   <span class="kd">public</span> <span class="kt">void</span> <span class="nf">think</span><span class="o">()</span> <span class="o">{</span>
+       <span class="n">Debug</span><span class="o">.</span><span class="na">info</span><span class="o">(</span><span class="s">"%s is thinking...%n"</span><span class="o">,</span><span class="k">this</span><span class="o">);</span>
+       <span class="n">Tools</span><span class="o">.</span><span class="na">randomPause</span><span class="o">(</span><span class="mi">10</span><span class="o">);</span>
+   <span class="o">}</span>
+
+   <span class="nd">@Override</span>
+   <span class="kd">public</span> <span class="kd">abstract</span> <span class="kt">void</span> <span class="nf">eat</span><span class="o">();</span>
+
+   <span class="kd">protected</span> <span class="kt">void</span> <span class="nf">doEat</span><span class="o">()</span> <span class="o">{</span>
+       <span class="n">Debug</span><span class="o">.</span><span class="na">info</span><span class="o">(</span><span class="s">"%s is eating...%n"</span><span class="o">,</span><span class="k">this</span><span class="o">);</span>
+       <span class="n">Tools</span><span class="o">.</span><span class="na">randomPause</span><span class="o">(</span><span class="mi">10</span><span class="o">);</span>
+   <span class="o">}</span>
+
+   <span class="nd">@Override</span>
+   <span class="kd">public</span> <span class="n">String</span> <span class="nf">toString</span><span class="o">()</span> <span class="o">{</span>
+       <span class="k">return</span> <span class="s">"Philosopher--"</span> <span class="o">+</span> <span class="n">id</span><span class="o">;</span>
+   <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div></div>
+<ul>
+  <li>筷子模型类</li>
+</ul>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cm">/**
+ * 筷子模型
+ * 该类是一个非线程安全的类
+ * @author FuPingstar
+ * @date 2019/6/11 13:02
+ */</span>
+<span class="kd">public</span> <span class="kd">class</span> <span class="nc">Chopstick</span> <span class="o">{</span>
+
+    <span class="kd">public</span> <span class="kd">final</span> <span class="kt">int</span> <span class="n">id</span><span class="o">;</span>
+
+    <span class="kd">private</span> <span class="n">Status</span> <span class="n">status</span> <span class="o">=</span> <span class="n">Status</span><span class="o">.</span><span class="na">PUT_DOWN</span><span class="o">;</span>
+
+    <span class="kd">public</span> <span class="kd">static</span> <span class="kd">enum</span> <span class="n">Status</span> <span class="o">{</span>
+        <span class="n">PICKED_UP</span><span class="o">,</span>
+        <span class="n">PUT_DOWN</span>
+    <span class="o">}</span>
+
+    <span class="kd">public</span> <span class="nf">Chopstick</span><span class="o">(</span><span class="kt">int</span> <span class="n">id</span><span class="o">)</span> <span class="o">{</span>
+        <span class="kd">super</span><span class="o">();</span>
+        <span class="k">this</span><span class="o">.</span><span class="na">id</span> <span class="o">=</span> <span class="n">id</span><span class="o">;</span>
+    <span class="o">}</span>
+
+    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">pickUp</span><span class="o">(){</span>
+        <span class="n">status</span> <span class="o">=</span> <span class="n">Status</span><span class="o">.</span><span class="na">PICKED_UP</span><span class="o">;</span>
+    <span class="o">}</span>
+
+    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">putDown</span><span class="o">(){</span>
+        <span class="n">status</span> <span class="o">=</span> <span class="n">Status</span><span class="o">.</span><span class="na">PICKED_UP</span><span class="o">;</span>
+    <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div></div>
+<ul>
+  <li>能导致死锁的哲学家模型（哲学家抽象类的子类，内部锁实现）</li>
+</ul>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cm">/**
+ * @author FuPingstar
+ * @date 2019/6/11 13:27
+ */</span>
+<span class="kd">public</span> <span class="kd">class</span> <span class="nc">DeadlockingPhilosopher</span> <span class="kd">extends</span> <span class="n">AbstractPhilosopher</span><span class="o">{</span>
+    <span class="kd">public</span> <span class="nf">DeadlockingPhilosopher</span><span class="o">(</span><span class="kt">int</span> <span class="n">id</span><span class="o">,</span> <span class="n">Chopstick</span> <span class="n">left</span><span class="o">,</span> <span class="n">Chopstick</span> <span class="n">right</span><span class="o">)</span> <span class="o">{</span>
+        <span class="kd">super</span><span class="o">(</span><span class="n">id</span><span class="o">,</span> <span class="n">left</span><span class="o">,</span> <span class="n">right</span><span class="o">);</span>
+    <span class="o">}</span>
+
+    <span class="nd">@Override</span>
+    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">eat</span><span class="o">()</span> <span class="o">{</span>
+        <span class="kd">synchronized</span> <span class="o">(</span><span class="n">left</span><span class="o">){</span>
+            <span class="n">Debug</span><span class="o">.</span><span class="na">info</span><span class="o">(</span><span class="s">"%s is picking up %s on his left...%n"</span><span class="o">,</span> <span class="k">this</span><span class="o">,</span> <span class="n">left</span><span class="o">);</span>
+            <span class="n">left</span><span class="o">.</span><span class="na">pickUp</span><span class="o">();</span>  <span class="c1">//拿起左手边的筷子</span>
+            <span class="kd">synchronized</span> <span class="o">(</span><span class="n">right</span><span class="o">){</span>
+                <span class="n">Debug</span><span class="o">.</span><span class="na">info</span><span class="o">(</span><span class="s">"%s is picking up %s on his right...%n"</span><span class="o">,</span> <span class="k">this</span><span class="o">,</span> <span class="n">right</span><span class="o">);</span>
+                <span class="n">right</span><span class="o">.</span><span class="na">pickUp</span><span class="o">();</span>  <span class="c1">//拿起右手边的筷子</span>
+                <span class="n">doEat</span><span class="o">();</span>   <span class="c1">//同时拿起两根筷子的时候才能吃饭</span>
+                <span class="n">right</span><span class="o">.</span><span class="na">putDown</span><span class="o">();</span>
+            <span class="o">}</span>
+            <span class="n">left</span><span class="o">.</span><span class="na">putDown</span><span class="o">();</span>
+        <span class="o">}</span>
+    <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<ul>
+  <li>
+    <p>能导致死锁的哲学家模型（哲学家抽象类的子类，显示锁实现）</p>
+  </li>
+  <li>
+    <p>哲学家就餐问题模拟程序</p>
+  </li>
+</ul>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cm">/**
+ * 哲学家就餐问题模拟程序
+ * @author FuPingstar
+ * @date 2019/6/11 13:36
+ */</span>
+<span class="kd">public</span> <span class="kd">class</span> <span class="nc">DiningPhilosopherProblem</span> <span class="o">{</span>
+
+
+    <span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">main</span><span class="o">(</span><span class="n">String</span><span class="o">[]</span> <span class="n">args</span><span class="o">)</span> <span class="kd">throws</span> <span class="n">Exception</span><span class="o">{</span>
+
+        <span class="kt">int</span> <span class="n">numOfPhilosopers</span><span class="o">;</span>
+        <span class="n">numOfPhilosopers</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="na">length</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="o">?</span> <span class="n">Integer</span><span class="o">.</span><span class="na">valueOf</span><span class="o">(</span><span class="n">args</span><span class="o">[</span><span class="mi">0</span><span class="o">])</span> <span class="o">:</span> <span class="mi">2</span><span class="o">;</span>
+
+<span class="c1">//        创建筷子</span>
+        <span class="n">Chopstick</span><span class="o">[]</span> <span class="n">chopsticks</span> <span class="o">=</span> <span class="k">new</span> <span class="n">Chopstick</span><span class="o">[</span><span class="n">numOfPhilosopers</span><span class="o">];</span>
+
+        <span class="k">for</span> <span class="o">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="o">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">numOfPhilosopers</span><span class="o">;</span> <span class="n">i</span><span class="o">++)</span> <span class="o">{</span>
+            <span class="n">chopsticks</span><span class="o">[</span><span class="n">i</span><span class="o">]</span> <span class="o">=</span> <span class="k">new</span> <span class="n">Chopstick</span><span class="o">(</span><span class="n">i</span><span class="o">);</span>
+        <span class="o">}</span>
+
+        <span class="n">String</span> <span class="n">philosopherImplClassName</span> <span class="o">=</span> <span class="n">System</span><span class="o">.</span><span class="na">getProperty</span><span class="o">(</span><span class="s">"x.philo.impl"</span><span class="o">);</span>
+        <span class="k">if</span> <span class="o">(</span><span class="kc">null</span> <span class="o">==</span> <span class="n">philosopherImplClassName</span><span class="o">)</span> <span class="o">{</span>
+            <span class="n">philosopherImplClassName</span> <span class="o">=</span> <span class="s">"DeadlockingPhilosopher"</span><span class="o">;</span>        
+        <span class="o">}</span>
+        <span class="n">Debug</span><span class="o">.</span><span class="na">info</span><span class="o">(</span><span class="s">"Using %s as implementation."</span><span class="o">,</span> <span class="n">philosopherImplClassName</span><span class="o">);</span>
+        <span class="k">for</span> <span class="o">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="o">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">numOfPhilosopers</span><span class="o">;</span> <span class="n">i</span><span class="o">++)</span> <span class="o">{</span>
+            <span class="c1">// 创建哲学家</span>
+            <span class="n">createPhilosper</span><span class="o">(</span><span class="n">philosopherImplClassName</span><span class="o">,</span> <span class="n">i</span><span class="o">,</span> <span class="n">chopsticks</span> <span class="o">);</span>
+        <span class="o">}</span>
+    <span class="o">}</span>
+
+    <span class="kd">private</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">createPhilosper</span><span class="o">(</span><span class="n">String</span> <span class="n">philosopherImplClassName</span><span class="o">,</span><span class="kt">int</span> <span class="n">id</span><span class="o">,</span><span class="n">Chopstick</span><span class="o">[]</span> <span class="n">chopsticks</span><span class="o">)</span><span class="kd">throws</span> <span class="n">Exception</span><span class="o">{</span>
+        <span class="kt">int</span> <span class="n">numOfPhilosophers</span> <span class="o">=</span> <span class="n">chopsticks</span><span class="o">.</span><span class="na">length</span><span class="o">;</span>
+
+        <span class="n">Class</span><span class="o">&lt;</span><span class="n">Philosopher</span><span class="o">&gt;</span> <span class="n">philosopherClass</span> <span class="o">=</span> <span class="o">(</span><span class="n">Class</span><span class="o">&lt;</span><span class="n">Philosopher</span><span class="o">&gt;)</span> <span class="n">Class</span><span class="o">.</span><span class="na">forName</span><span class="o">(</span><span class="n">DiningPhilosopherProblem</span><span class="o">.</span><span class="na">class</span><span class="o">.</span><span class="na">getPackage</span><span class="o">().</span><span class="na">getName</span><span class="o">()</span> <span class="o">+</span> <span class="s">"."</span> <span class="o">+</span> <span class="n">philosopherImplClassName</span><span class="o">);</span>
+
+        <span class="n">Constructor</span><span class="o">&lt;</span><span class="n">Philosopher</span><span class="o">&gt;</span> <span class="n">constructor</span> <span class="o">=</span> <span class="n">philosopherClass</span><span class="o">.</span><span class="na">getConstructor</span><span class="o">(</span><span class="kt">int</span><span class="o">.</span><span class="na">class</span><span class="o">,</span> <span class="n">Chopstick</span><span class="o">.</span><span class="na">class</span><span class="o">,</span> <span class="n">Chopstick</span><span class="o">.</span><span class="na">class</span><span class="o">);</span>
+
+        <span class="n">Philosopher</span> <span class="n">philosopher</span> <span class="o">=</span> <span class="n">constructor</span><span class="o">.</span><span class="na">newInstance</span><span class="o">(</span><span class="n">id</span><span class="o">,</span> <span class="n">chopsticks</span><span class="o">[</span><span class="n">id</span><span class="o">],</span> <span class="n">chopsticks</span><span class="o">[(</span><span class="n">id</span> <span class="o">+</span> <span class="mi">1</span><span class="o">)</span> <span class="o">%</span> <span class="n">numOfPhilosophers</span><span class="o">]);</span>
+        <span class="n">philosopher</span><span class="o">.</span><span class="na">start</span><span class="o">();</span>
+    <span class="o">}</span>
+<span class="o">}</span>
+
+</code></pre></div></div>
+
+<p><strong>到这里，理所当然，我们应该考虑规避死锁的问题了，死锁的恢复实际可操作性不强，这里我们不作讨论。</strong></p>
+
+<p>上面说到，产生死锁的代码特征是在持有一个锁的情况下去申请另外一个锁，通常意味着锁的嵌套，<strong>这里注意，由于Java中的锁是可重入的，所以线程在已经持有一个锁的情况下再次申请这个锁并不会导致死锁，比如，一个类的一个同步方法调用另外一个同步方法。</strong></p>
+
+<p>规避死锁，从死锁产生的必要条件出发，只需要消除产生死锁的任意一个条件即可，由于锁满足了资源互斥和资源不可抢夺的要求，那么由锁导致的死锁只能从消除“占用并等待资源”和消除“循环等待资源”这两个方向入手。下面分别从这两个角度介绍方法。</p>
+
+<ul>
+  <li>粗锁法</li>
+  <li>锁排序法</li>
+  <li>ReentrantLock.tryLock(long,TimeUnit)</li>
+  <li>使用开放调用</li>
+  <li>使用锁的替代品</li>
+</ul>

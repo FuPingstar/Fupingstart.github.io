@@ -6,7 +6,7 @@ exclude: ["README.md"] # files to exclude
 highlighter: rouge
 markdown: kramdown
 disqus: fupingstar
-google_analytics:
+google_analytics: UA-142449691-1
 title: Fupingstar
 
 defaults:

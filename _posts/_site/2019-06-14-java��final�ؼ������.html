@@ -1,0 +1,74 @@
+<p><strong>编程的过程中，想必我们碰到final关键字的地方很多，相信很多人跟我一样，对final这个关键字只是初步了解，会用，没有做过全面透彻的分析，写这篇文章就是全面的分析一下这个关键字，以及在java中常见用法。如有不对之处还需指正，评论功能需挂vpn才可见，没办法，Disqus国内无法访问，国家网络的闭关锁国很是苦恼啊…不吐槽了，下面开始</strong></p>
+
+<p><strong>首先，我们先来看java中使用到final的三种情况：数据，方法和类</strong></p>
+
+<h4 id="final数据">final数据</h4>
+
+<p>  任何一种编程语言都使用某种方法来使得一块数据是恒定不变的，最典型的有两种情况，一个就是编译时常量，一个就是运行时被初始化的值，但是不能改变。java中使用final关键字来实现不变常量。下面我们从这两种情况分析final数据。</p>
+
+<ul>
+  <li>
+    <p>对于编译期常量，编译期可以将该常量的值代入任何可能用到它的计算式中，可以在编译时执行计算式，减轻了运行时负担。<font color="red">在java中，编译期常量必须是基本数据类型，并且被final修饰，在对这个常量进行定义的时候，必须对其赋值。</font></p>
+  </li>
+  <li>
+    <p>对于运行时初始化的常量，其类型既可以是基本类型，也可以是引用类型，当final修饰的是引用类型的时候，使得应用恒定不变。注意这里不变的含义：<strong>一旦引用被初始化指向一个对象，就无法再把它改为指向另外一个对象，然而，对象其自身确实可以被修改的，java没有提供使得任何对象恒定不变的途径。</strong></p>
+  </li>
+</ul>
+
+<p><strong>接下来我们用java编程思想中的一段代码具体分析final数据</strong></p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">class</span> <span class="nc">FinalData</span> <span class="o">{</span>
+
+    <span class="kd">private</span> <span class="kd">static</span> <span class="n">Random</span> <span class="n">rand</span> <span class="o">=</span> <span class="k">new</span>  <span class="n">Random</span><span class="o">(</span><span class="mi">47</span><span class="o">);</span>
+    <span class="kd">private</span> <span class="n">String</span> <span class="n">id</span><span class="o">;</span>
+
+    <span class="kd">public</span> <span class="nf">FinalData</span><span class="o">(</span><span class="n">String</span> <span class="n">id</span><span class="o">)</span> <span class="o">{</span>
+        <span class="k">this</span><span class="o">.</span><span class="na">id</span> <span class="o">=</span> <span class="n">id</span><span class="o">;</span>
+    <span class="o">}</span>
+
+    <span class="kd">private</span> <span class="kd">final</span> <span class="kt">int</span> <span class="n">valueOne</span> <span class="o">=</span> <span class="mi">9</span><span class="o">;</span>
+    <span class="kd">private</span> <span class="kd">static</span> <span class="kd">final</span> <span class="kt">int</span> <span class="n">VALUE_TWO</span> <span class="o">=</span> <span class="mi">99</span><span class="o">;</span>
+
+    <span class="c1">//valueOne 和 VALUE_TWO都是带有编译时数值的final基本类型，所以二者均可以作为编译期常量，没有太大区别，</span>
+    <span class="c1">// 既是static又是final的域只占据一段不能改变的存储空间</span>
+
+
+<span class="c1">//    定义常量的典型方式，public：可以被用于包之外，static：强调只有一份，final：则说明是一个常量</span>
+    <span class="kd">public</span> <span class="kd">static</span> <span class="kd">final</span> <span class="kt">int</span> <span class="n">VALUE_THREE</span> <span class="o">=</span> <span class="mi">39</span><span class="o">;</span>
+
+    <span class="kd">private</span> <span class="kd">final</span> <span class="kt">int</span> <span class="n">i4</span> <span class="o">=</span> <span class="n">rand</span><span class="o">.</span><span class="na">nextInt</span><span class="o">(</span><span class="mi">20</span><span class="o">);</span>
+    <span class="kd">static</span> <span class="kd">final</span> <span class="kt">int</span> <span class="n">INT_5</span> <span class="o">=</span> <span class="n">rand</span><span class="o">.</span><span class="na">nextInt</span><span class="o">(</span><span class="mi">20</span><span class="o">);</span>
+    <span class="kd">private</span> <span class="n">Value</span> <span class="n">v1</span> <span class="o">=</span> <span class="k">new</span> <span class="n">Value</span><span class="o">(</span><span class="mi">11</span><span class="o">);</span>
+    <span class="kd">private</span> <span class="kd">final</span> <span class="n">Value</span> <span class="n">v2</span> <span class="o">=</span> <span class="k">new</span> <span class="n">Value</span><span class="o">(</span><span class="mi">22</span><span class="o">);</span>
+    <span class="kd">private</span> <span class="kd">static</span> <span class="kd">final</span> <span class="n">Value</span> <span class="n">V3</span> <span class="o">=</span> <span class="k">new</span> <span class="n">Value</span><span class="o">(</span><span class="mi">33</span><span class="o">);</span>
+    <span class="kd">private</span> <span class="kd">final</span> <span class="kt">int</span><span class="o">[]</span> <span class="n">a</span> <span class="o">=</span> <span class="o">{</span><span class="mi">1</span><span class="o">,</span><span class="mi">2</span><span class="o">,</span><span class="mi">3</span><span class="o">,</span><span class="mi">4</span><span class="o">,</span><span class="mi">5</span><span class="o">,</span><span class="mi">6</span><span class="o">};</span>
+
+
+    <span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">main</span><span class="o">(</span><span class="n">String</span><span class="o">[]</span> <span class="n">args</span><span class="o">)</span> <span class="o">{</span>
+        <span class="n">FinalData</span> <span class="n">fd1</span> <span class="o">=</span> <span class="k">new</span> <span class="n">FinalData</span><span class="o">(</span><span class="s">"fd1"</span><span class="o">);</span>
+<span class="c1">//        fd1.valueOne++;    不能改变编译器常量的值</span>
+        <span class="n">fd1</span><span class="o">.</span><span class="na">v2</span><span class="o">.</span><span class="na">i</span><span class="o">++;</span>        <span class="c1">//final修饰对象，对象自身可以改变，只是引用不能指向其他对象</span>
+        <span class="n">fd1</span><span class="o">.</span><span class="na">v1</span> <span class="o">=</span> <span class="k">new</span> <span class="n">Value</span><span class="o">(</span><span class="mi">9</span><span class="o">);</span>  <span class="c1">// ok ,v1不是一个常量</span>
+        <span class="k">for</span> <span class="o">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="o">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">fd1</span><span class="o">.</span><span class="na">a</span><span class="o">.</span><span class="na">length</span><span class="o">;</span> <span class="n">i</span><span class="o">++)</span> <span class="o">{</span>
+            <span class="n">fd1</span><span class="o">.</span><span class="na">a</span><span class="o">[</span><span class="n">i</span><span class="o">]++;</span>
+        <span class="o">}</span>
+<span class="c1">//        fd1.v2 = new Value(0);   //引用被final修饰，不能指向其他引用</span>
+<span class="c1">//        fd1.a = new int[3];        数组也是一种引用，跟上面情况一样</span>
+
+    <span class="o">}</span>
+<span class="o">}</span>
+
+<span class="kd">class</span> <span class="nc">Value</span><span class="o">{</span>
+    <span class="kt">int</span> <span class="n">i</span><span class="o">;</span> <span class="c1">//包访问权限</span>
+
+    <span class="kd">public</span> <span class="nf">Value</span><span class="o">(</span><span class="kt">int</span> <span class="n">i</span><span class="o">)</span> <span class="o">{</span>
+        <span class="k">this</span><span class="o">.</span><span class="na">i</span> <span class="o">=</span> <span class="n">i</span><span class="o">;</span>
+    <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<p><strong>把final数值定义为静态和非静态的区别只有在运行时被初始化才会显现。既是static又是final的域只占据一段不能改变的存储空间</strong></p>
+
+<h4 id="final方法">final方法</h4>
+
+<h4 id="final类">final类</h4>
